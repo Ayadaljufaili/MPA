@@ -1,1 +1,424 @@
-new
+
+# Estimation of Used Car Prices - Data Science project
+
+
+## Import Libraries
+All libraries are used for specific tasks including data preprocessing, visualization, transformation and evaluation
+
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import LabelEncoder,StandardScaler
+from sklearn.linear_model import LinearRegression,Lasso
+from sklearn.metrics import mean_squared_error,mean_absolute_error
+from sklearn.ensemble import RandomForestRegressor
+import warnings
+warnings.filterwarnings("ignore")
+
+
+---------------------------------------------------------
+
+"--------------Business Problem: Estimate the price of a used car based on chara/features such as manufacturer name, transmission, color...-----------"
+
+## Import Data
+### Read Training Data
+The training set is read locally and the **head** function is used to display the data for intial understanding
+
+"======Data understanding======"
+
+import pandas as pd
+
+dataTrain = pd.read_csv('data_football.csv')
+
+dataTrain.head()
+
+type(dataTrain)  #data type
+
+The **shape** function displays the number of rows and columns in the training set
+
+dataTrain.shape # check dimension
+
+Checking for null values in each column and displaying the sum of all null values in each column (Training Set)
+
+dataTrain.isnull().sum()
+
+#Show me the locations where the null values are
+dataTrain[dataTrain.isnull().any(axis=1)]
+
+dataTrain = dataTrain.dropna() # Dropping those records having null values
+
+Checking if null values are eliminated (Training set)
+
+dataTrain.isnull().sum()
+
+dataTrain.shape # printing the shape -- Yes, 15 rows containing null values are removed
+
+Checking the data types
+
+dataTrain.dtypes  # checking the data type of every column
+
+Checking the correlation between the numerical features and with the target
+
+## EDA (Exploratory Data Analysis)
+Visualizations are used to understand the relationship between the target variable and the features, in addition to correlation coefficient.
+The visuals include heatmap,boxplot etc.
+
+
+# Heat map
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
+# Compute correlation matrix for numerical columns
+%time
+corr = dataTrain.select_dtypes(include=['number']).corr()
+
+# Plot heatmap
+sns.heatmap(corr, annot=True, xticklabels=corr.columns, yticklabels=corr.columns)
+plt.show()
+
+
+
+​FireDucks is a high-performance, compiler-accelerated DataFrame library for Python, offering full compatibility with the pandas API. It aims to significantly speed up data analysis tasks without requiring extensive code modifications.
+
+!pip install fireducks # optional for the assignment
+
+
+# Below cell code is optional for the assignment.. THis shows the execution time reduction with fireducks
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+import fireducks.pandas as pd
+ #importing the pandas module that is found inside the fireducks library.
+ # FireDucks is a DataFrame library specifically designed to accelerate pandas operations
+
+#Load the data
+dataTrain_fd = pd.read_csv("/content/data_football.csv")
+dataTrain_fd = dataTrain_fd.dropna()
+
+%time
+corr = dataTrain_fd.select_dtypes(include=['number']).corr() #find corr
+
+# Plot the heatmap
+sns.heatmap(corr, annot=True, xticklabels=corr.columns, yticklabels=corr.columns)
+
+plt.show()
+
+
+From the heatmap, it is observed that 'year_produced' is the best feature among all the features with numerical data
+
+Descriptive statistics
+
+ dataTrain.describe() #generate various summary statistics of a DataFrame
+#Note: Only features with numeric data are considered
+
+A descriptive analysis to check incorrect entries and anormalies.
+
+1. Count: The number of values in the dataframe.
+2. Mean: The arithmetic mean or average of the values.
+3. Standard Deviation (std): A measure of the dispersion or spread of the values.
+4. Minimum: The minimum (smallest) value in each column.
+5. 25th Percentile (25%): The value below which 25% of the data falls (1st quartile). Means 25% of the entire data falls under the value 158000 for odometer_value
+6. 50th Percentile (50%): The median or value below which 50% of the data falls (2nd quartile).
+7. 75th Percentile (75%): The value below which 75% of the data falls (3rd quartile).
+8. Maximum: The maximum (largest) value in the Series.
+
+**************************************************************
+
+#Looking at the "minimum price", 1 USD is found.
+#This could be a wrong entry (or an outlier)
+
+
+
+
+#Search for price = 1 , if so, change the price to 500
+dataTrain.loc[dataTrain['price'] == 1, 'price'] = 500
+
+dataTrain.describe()  # now still the minimum price is 1.42 USD
+
+#Search for price < 500 , if so, change the price to 500
+dataTrain.loc[dataTrain['price'] < 500, 'price'] = 500
+
+dataTrain.describe()  # now the minimum price is 500 USD
+
+Find the distribution of the price in the entire dataset
+using "bins"  -- Technique applied is called data binning
+
+import matplotlib.pyplot as plt
+
+dataTrain['price'].plot(kind = 'hist', bins = 5, edgecolor='black')   # 5 bins are used
+plt.xlabel('Price')
+plt.ylabel('age')
+plt.title('Distribution of Age and Price')
+plt.show()
+
+From the histogram, it is understood that majority of the car samples are of lower prices
+
+dataTrain.describe(include = 'object') #summary statistics for categorical values
+
+### Regression/scatter Plot
+This regression plot shows the relation between **odometer** and **price**. A slight negative correlation is observed
+which shows that price is being affected by the change in odometer value.
+
+import seaborn as sns
+plt.figure(figsize=(10,6))
+sns.regplot(x="age", y="price", data=dataTrain)
+
+**As** observed in the plot, a **Postive correlation** is observed
+
+from scipy import stats
+pearson_coef, p_value = stats.pearsonr(dataTrain['age'], dataTrain['price'])
+print("The Pearson Correlation Coefficient is", pearson_coef, " with a P-value of P =", p_value)
+
+-- Pearson corr coeff of -0.42 is obtained along with a p-value of 0.
+
+-- The Pearson Correlation Coefficient (r) is a measure of the linear relationship between two variables. It can take values between -1 and 1
+
+-- If r is close to 1, it indicates a strong positive linear relationship. This means that as one variable increases, the other variable tends to increase as well.
+
+-- If r is close to -1, it indicates a strong negative linear relationship. This means that as one variable increases, the other variable tends to decrease.
+
+-- If r is close to 0, it suggests a weak or no linear relationship. In other words, the variables are not strongly correlated.
+
+-- Here, the Pearson Correlation Coefficient is approximately -0.422, which is closer to -1 than to 0. This indicates a moderate negative linear relationship between the two variables being correlated.
+
+-- The p-value (probablity) is used to determine the statistical significance of the correlation. In other words, how confidently one can say a feature is correlated to the target variable.
+
+"IMPORTANT:" A p-value less than 0.05 (commonly used significance level) suggests that the correlation is statistically significant and hence reject the Null hypothesis.
+
+What is my null hypothesis?
+H0: The feature variable is correlated to a target variable.
+
+Very important: A P-value of 0.0 means (more confidently say the feature is correlated to target) and that the correlation is extremely unlikely to have occurred by random chance, indicating strong statistical significance.
+
+-- The p value here (that corresponds to odometer_values) confirms strong correlation, hence this feature is a critical feature to the prediction of used car price.
+
+The regression plot below shows a relationship between the year that the car is produced and the price of the car. A positive
+correlation is observed between the two variables. This shows that the price increases with increase in production year of the car.
+
+plt.figure(figsize=(10,6))
+sns.regplot(x="age", y="price", data=dataTrain)
+
+As observed above, a high positive correlation of 0.7 is calculated along with the p-value of 0. This indicates that the correlation between the variables is significant hence year produced feature can be used for prediction.
+
+pearson_coef, p_value = stats.pearsonr(dataTrain['year_produced'], dataTrain['price_usd'])
+print("The Pearson Correlation Coefficient is", pearson_coef, " with a P-value of P =", p_value)
+
+check for correlation between 'engine_capacity' and 'price'
+
+plt.figure(figsize=(10,6))
+sns.regplot(x="engine_capacity", y="price_usd", data=dataTrain)
+
+A 0.3 correlation is calculated which is very small with a p value of 0. This indicates that even though the correlation is small but its 30% of 100 which is significant hence this feature can be used for predicition.
+
+pearson_coef, p_value = stats.pearsonr(dataTrain['engine_capacity'], dataTrain['price_usd'])
+print("The Pearson Correlation Coefficient is", pearson_coef, " with a P-value of P =", p_value)
+
+This regression plot shows an minor positive correlation observed with the help of the best fit line. The calculation will confirm the actual value.
+
+-----check for correlation between 'number of photos' and 'price'------------
+
+plt.figure(figsize=(10,6))
+sns.regplot(x="number_of_photos", y="price_usd", data=dataTrain)
+
+The correlation is 0.31 based on the calculation while the p-value calculated is zero. This is similar to the last feature hence the significant 31% of 100 correlation makes this feature eligble for prediction.
+
+pearson_coef, p_value = stats.pearsonr(dataTrain['number_of_photos'], dataTrain['price_usd'])
+print("The Pearson Correlation Coefficient is", pearson_coef, " with a P-value of P =", p_value)
+
+This plot shows correlation with points all over the graph like the previous feature varibale.
+
+-------check correlation b/w number of mantenance and price-------------
+
+plt.figure(figsize=(10,6))
+sns.regplot(x="number_of_maintenance", y="price_usd", data=dataTrain)
+
+The calculation proves that a correlation is lesser than 0.1 percent and indicates no correlation and the p-value lesser than 0.05 confirms it. This feature is not a critical feature for predicition
+
+A P-value less than 0.05 (commonly used significance level) suggests that the correlation is statistically significant and hence reject the Null hypothesis.
+
+What is my null hypothesis?
+H0: The number_of_maintenance is correlated to price.
+
+My alternate hypothesis
+HA: The number_of_maintenance is not correlated to price.
+
+A p-value  9.45757476702243e-40 less than 0.05 typically indicates statistical significance, suggesting strong evidence 'against" the null hypothesis and accept alternate hypothesis.
+
+pearson_coef, p_value = stats.pearsonr(dataTrain['number_of_maintenance'], dataTrain['price_usd'])
+print("The Pearson Correlation Coefficient is", pearson_coef, " with a P-value of P =", p_value)
+
+---- this plot shows no correlation with points all over the graph ----
+
+*************check correlation between duration listed and price***************
+
+plt.figure(figsize=(10,6))
+sns.regplot(x="duration_listed", y="price_usd", data=dataTrain)
+
+The calculated correlation is lesser than 0.1 which is considered negligible. The p-value lesser than 0.05 confirming the rejection of null hypothesis and hence this feature is not suitable for prediction of price.
+
+pearson_coef, p_value = stats.pearsonr(dataTrain['duration_listed'], dataTrain['price_usd'])
+print("The Pearson Correlation Coefficient is", pearson_coef, " with a P-value of P =", p_value)
+
+### Box Plot
+These plots are used for categorical data to determine the importance of features for prediction.
+
+In the given plot below, it is observed that the price range vary for automatic and manual transmisson. This indicates the categories can vary with price hence feature can be used for prediction
+
+sns.boxplot(x="age", y="price", data=dataTrain)
+
+The box plot shows how prices vary based on different colors. This shows that color can be used as a feature for price prediction.
+
+plt.figure(figsize=(10,6))
+sns.boxplot(x="team", y="price", data=dataTrain)
+
+This plot shows engine fuel types and how they affect the price. Hybrid petroll with the highest price range while hybrid diesel with lowest price range. This feature can be used for prediction.
+
+sns.boxplot(x="nation", y="price", data=dataTrain)
+
+The engine type (based on fuel type) shows that both categories have almost the same price range which will not bring differences in price when prediction is made. Hence this feature is not suitable for price prediction
+
+sns.boxplot(x="position", y="price", data=dataTrain)
+
+Thee box plot shows body type categories with varying prices per category hence this feature can be used for price prediction, not so signficant though
+
+Using Exploratory data analysis, few features can be dropped because they had no impact on the price prediction. Those features are removed with the function below.(Training set)
+
+dataTrain.drop(['selections_nation', 'clean_sheet_champ','goals_selection'], axis = 1, inplace = True)
+
+Same features are removed for testing set since the data will be used to train the model
+
+dataTrain.shape
+
+
+### Data Transformation
+Label encoding of categorical features in the training set. Label encoding is converting categorical data into numerical data since the model cant understand textual data.
+
+----Data Preparation--------
+
+from sklearn.preprocessing import LabelEncoder
+
+labelencoder = LabelEncoder()
+dataTrain.name = labelencoder.fit_transform(dataTrain.name)
+dataTrain.age = labelencoder.fit_transform(dataTrain.age)
+dataTrain.nation = labelencoder.fit_transform(dataTrain.nation)
+dataTrain.league = labelencoder.fit_transform(dataTrain.league)
+
+dataTrain.team = labelencoder.fit_transform(dataTrain.team)
+dataTrain.position = labelencoder.fit_transform(dataTrain.position)
+
+
+
+Label encoding of all categorical data in the testing set.
+
+Checking on the remaining features and if label encoding is applied to all categorical features
+
+dataTrain.head(10)
+
+Check on the remaining features and application of label encoding to all categorical features (Testing set).
+
+--Data Transfornation (normalization) ----
+minmax is used for scaling down the features between the range of -1 and 1. This helps the model make better prediction as it is easy to understand. The scaling is applied to the training and testing set  --- You can try using z score normalization also
+
+from sklearn.preprocessing import StandardScaler
+numerical_cols = dataTrain.select_dtypes(include=['number']).columns
+scaler = StandardScaler()
+dataTrain[numerical_cols] = scaler.fit_transform(dataTrain[numerical_cols])
+
+
+print(dataTrain.head())
+
+Dividing the data for training and testing accordingly. X takes the all features while Y takes the target variable
+
+
+# Convert the NumPy array back into a Pandas DataFrame
+dataTrain = pd.DataFrame(dataTrain, columns=['name', 'age', 'team', 'league', 'position','price'])
+
+# Now you can use drop on dataTrain
+x_train=dataTrain.drop('price',axis=1)
+y_train=dataTrain[['price']]
+
+#In case you have no separate testing data, use the following code
+from sklearn.model_selection import train_test_split
+x_train, x_test, y_train, y_test = train_test_split(x_train, y_train, test_size = 0.3, random_state = 0)
+#30% of the trainng data will be used for testing
+
+
+x_train.head()
+
+y_train.head()
+
+print(x_train.shape)
+print(y_train.shape)
+print(x_test.shape)
+print(y_test.shape)
+
+## Fit Model
+### Multiple Linear Regression
+Calling multiple linear regression model and fitting the training set
+
+from sklearn.linear_model import LinearRegression
+
+model = LinearRegression()
+model_mlr = model.fit(x_train,y_train)
+
+Making price prediction using the testing set (Fit to MLR)
+
+y_pred1 = model_mlr.predict(x_test)
+
+
+### MLR Evaluation
+
+
+Calculating the Mean Square Error for MLR model
+
+mse1 = mean_squared_error(y_test, y_pred1)
+print('The mean square error for Multiple Linear Regression: ', mse1)
+
+Calculating the Mean Absolute Error for MLR model
+
+mae1= mean_absolute_error(y_test, y_pred1)
+print('The mean absolute error for Multiple Linear Regression: ', mae1)
+
+### Random Forest Regressor (checking other Models)
+Calling the random forest model and fitting the training data
+
+rf = RandomForestRegressor()
+model_rf = rf.fit(x_train,y_train)
+
+Prediction of car prices using the testing data
+
+y_pred2 = model_rf.predict(x_test)
+
+### Random Forest Evaluation
+
+
+Calculating the Mean Square Error for Random Forest Model (Lowest MSE value)
+
+mse2 = mean_squared_error(y_test, y_pred2)
+print('The mean square error of price and predicted value is: ', mse2)
+
+Calculating the Mean Absolute Error for Random Forest Model (Lowest Mean Absolute Error)
+
+mae2= mean_absolute_error(y_test, y_pred2)
+print('The mean absolute error of price and predicted value is: ', mae2)
+
+scores = [('MLR', mae1),
+          ('Random Forest', mae2)
+         ]
+
+mae = pd.DataFrame(data = scores, columns=['Model', 'MAE Score'])
+mae
+
+mae.sort_values(by=(['MAE Score']), ascending=False, inplace=True)
+
+f, axe = plt.subplots(1,1, figsize=(10,7))
+sns.barplot(x = mae['Model'], y=mae['MAE Score'], ax = axe)
+axe.set_xlabel('Model', size=20)
+axe.set_ylabel('Mean Absolute Error', size=20)
+
+plt.show()
+
+#Based on the MAE, it is concluded that MLR is the best regression model for predicting the price of players based on the 6 predictor variables
